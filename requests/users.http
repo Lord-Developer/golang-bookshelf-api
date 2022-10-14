@@ -1,0 +1,13 @@
+### Sign Up
+POST http://localhost:8080/signup
+Content-Type: application/json
+
+{
+    "name": "Nodir",
+    "key": "Lord",
+    "secret": "King"
+}
+
+### Get Info
+$$$ Header key: User.key, sign: User.secret
+GET http://localhost:8080/myself/{id}

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/Lord-Developer/bookshelf-api/models"
-	"github.com/Lord-Developer/bookshelf-api/storage"
+	"github.com/Lord-Developer/golang-bookshelf-api/models"
+	"github.com/Lord-Developer/golang-bookshelf-api/storage"
 	"github.com/gofiber/fiber/v2"
 	"github.com/joho/godotenv"
 	"gorm.io/gorm"
@@ -39,8 +39,32 @@ type Repository struct {
 	DB *gorm.DB
 }
 
-func (r *Repository) GetUserInfo(context *fiber.Ctx) error {
+func (r *Repository) Authenticate(context *fiber.Ctx) bool {
+	key := context.Get("key", os.DevNull)
+	sign := context.Get("sign", os.DevNull)
+	if key == os.DevNull || sign == os.DevNull {
+		context.Status(http.StatusBadRequest).JSON(
+			&fiber.Map{
+				"isOk":    false,
+				"message": "User is not authenticated!"})
+		return false
+	}
 
+	user := &models.Users{}
+	err := r.DB.Where("key = ? AND secret = ?", key, sign).First(user).Error
+	if err != nil {
+		context.Status(http.StatusBadRequest).JSON(
+			&fiber.Map{"isOk": false,
+				"message": "Key or Secret is wrong!"})
+		return false
+	}
+	return true
+}
+
+func (r *Repository) GetUserInfo(context *fiber.Ctx) error {
+	if !r.Authenticate(context) {
+		return nil
+	}
 	id := context.Params("id")
 	user := &models.Users{}
 	if id == "" {
@@ -110,23 +134,26 @@ func (r *Repository) CreateUser(context *fiber.Ctx) error {
 }
 
 func (r *Repository) CreateBook(context *fiber.Ctx) error {
+	if !r.Authenticate(context) {
+		return nil
+	}
 	book := Book{}
 
-	err := context.BodyParser(&book)
+	errObj := context.BodyParser(&book)
 
-	if err != nil {
+	if errObj != nil {
 		context.Status(http.StatusUnprocessableEntity).JSON(
 			&fiber.Map{"isOk": false,
 				"message": "request failed"})
-		return err
+		return errObj
 	}
 
-	err = r.DB.Create(&book).Error
-	if err != nil {
+	errObj = r.DB.Create(&book).Error
+	if errObj != nil {
 		context.Status(http.StatusBadRequest).JSON(
 			&fiber.Map{"isOk": false,
 				"message": "request failed"})
-		return err
+		return errObj
 	}
 
 	context.Status(http.StatusOK).JSON(&fiber.Map{
@@ -149,6 +176,9 @@ func (r *Repository) CreateBook(context *fiber.Ctx) error {
 }
 
 func (r *Repository) DeleteBook(context *fiber.Ctx) error {
+	if !r.Authenticate(context) {
+		return nil
+	}
 	book := models.Books{}
 	id := context.Params("id")
 	if id == "" {
@@ -158,13 +188,13 @@ func (r *Repository) DeleteBook(context *fiber.Ctx) error {
 		return nil
 	}
 
-	err := r.DB.Delete(book, id)
+	errObj := r.DB.Delete(book, id)
 
-	if err.Error != nil {
+	if errObj.Error != nil {
 		context.Status(http.StatusBadRequest).JSON(&fiber.Map{
 			"message": "could not delete book",
 		})
-		return err.Error
+		return errObj.Error
 	}
 	context.Status(http.StatusOK).JSON(&fiber.Map{
 
@@ -177,13 +207,16 @@ func (r *Repository) DeleteBook(context *fiber.Ctx) error {
 }
 
 func (r *Repository) GetBooks(context *fiber.Ctx) error {
+	if !r.Authenticate(context) {
+		return nil
+	}
 	bookModels := &[]models.Books{}
 
-	err := r.DB.Find(bookModels).Error
-	if err != nil {
+	errObj := r.DB.Find(bookModels).Error
+	if errObj != nil {
 		context.Status(http.StatusBadRequest).JSON(
 			&fiber.Map{"message": "could not get books"})
-		return err
+		return errObj
 	}
 
 	var books []BookResponse
@@ -201,6 +234,10 @@ func (r *Repository) GetBooks(context *fiber.Ctx) error {
 }
 
 func (r *Repository) UpdateBookStatus(context *fiber.Ctx) error {
+	if !r.Authenticate(context) {
+		return nil
+	}
+
 	id := context.Params("id")
 	if id == "" {
 		context.Status(http.StatusInternalServerError).JSON(&fiber.Map{
@@ -212,19 +249,19 @@ func (r *Repository) UpdateBookStatus(context *fiber.Ctx) error {
 	bookModel := &models.Books{}
 	book := Book{}
 
-	err := context.BodyParser(&book)
-	if err != nil {
+	errIns := context.BodyParser(&book)
+	if errIns != nil {
 		context.Status(http.StatusUnprocessableEntity).JSON(
 			&fiber.Map{"message": "request failed"})
-		return err
+		return nil
 	}
 
-	err = r.DB.Model(bookModel).Where("id = ?", id).Updates(book).Error
-	if err != nil {
+	errIns = r.DB.Model(bookModel).Where("id = ?", id).Updates(book).Error
+	if errIns != nil {
 		context.Status(http.StatusBadRequest).JSON(&fiber.Map{
 			"message": "could not update book",
 		})
-		return err
+		return errIns
 	}
 
 	bookObject := &models.Books{}
@@ -257,7 +294,9 @@ func (r *Repository) UpdateBookStatus(context *fiber.Ctx) error {
 }
 
 func (r *Repository) GetBookByISBN(context *fiber.Ctx) error {
-
+	if !r.Authenticate(context) {
+		return nil
+	}
 	isbn := context.Params("isbn")
 	book := &models.Books{}
 	if isbn == "" {
@@ -269,11 +308,11 @@ func (r *Repository) GetBookByISBN(context *fiber.Ctx) error {
 
 	fmt.Println("the ISBN is", isbn)
 
-	err := r.DB.Where("isbn = ?", isbn).First(book).Error
-	if err != nil {
+	errObj := r.DB.Where("isbn = ?", isbn).First(book).Error
+	if errObj != nil {
 		context.Status(http.StatusBadRequest).JSON(
 			&fiber.Map{"message": "could not get the book"})
-		return err
+		return nil
 	}
 	context.Status(http.StatusOK).JSON(&fiber.Map{
 
@@ -297,6 +336,10 @@ func (r *Repository) GetBookByISBN(context *fiber.Ctx) error {
 
 func (r *Repository) GetBookByID(context *fiber.Ctx) error {
 
+	if !r.Authenticate(context) {
+		return nil
+	}
+
 	id := context.Params("id")
 	bookModel := &models.Books{}
 	if id == "" {
@@ -308,11 +351,11 @@ func (r *Repository) GetBookByID(context *fiber.Ctx) error {
 
 	fmt.Println("the ID is", id)
 
-	err := r.DB.Where("id = ?", id).First(bookModel).Error
-	if err != nil {
+	errObj := r.DB.Where("id = ?", id).First(bookModel).Error
+	if errObj != nil {
 		context.Status(http.StatusBadRequest).JSON(
 			&fiber.Map{"message": "could not get the book"})
-		return err
+		return errObj
 	}
 	context.Status(http.StatusOK).JSON(&fiber.Map{
 		"message": "book id fetched successfully",
@@ -322,13 +365,14 @@ func (r *Repository) GetBookByID(context *fiber.Ctx) error {
 }
 
 func (r *Repository) SetupRoutes(app *fiber.App) {
-	api := app.Group("/api")
+	api := app
 	api.Post("/signup", r.CreateUser)
-	api.Post("/create_books", r.CreateBook)
-	api.Delete("delete_book/:id", r.DeleteBook)
-	api.Put("update_book/:id", r.UpdateBookStatus)
-	api.Get(("/get_book_by_isbn/:isbn"), r.GetBookByISBN)
-	api.Get("/get_books/:id", r.GetBookByID)
+	api.Get("/myself/:id", r.GetUserInfo)
+	api.Post("books", r.CreateBook)
+	api.Delete("books/:id", r.DeleteBook)
+	api.Patch("books/:id", r.UpdateBookStatus)
+	api.Get(("/books/:isbn"), r.GetBookByISBN)
+	api.Get("/book_by_id/:id", r.GetBookByID)
 	api.Get("/books", r.GetBooks)
 }
 

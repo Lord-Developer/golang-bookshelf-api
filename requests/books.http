@@ -1,0 +1,47 @@
+### Create Book
+$$$ Header key: User.key, sign: User.secret
+POST http://localhost:8080/books
+Content-Type: application/json
+
+{
+    "isbn": "787777123656",
+    "title": "Dark Days",
+    "author": "Jakie Chan",
+    "published": 2022,
+    "pages": 12,
+    "status": 3
+}
+
+
+### Get Books List
+$$$ Header key: User.key, sign: User.secret
+GET http://localhost:8080/books
+
+
+
+### Delete Book 
+$$$ Header key: User.key, sign: User.secret
+DELETE http://localhost:8080/books/{id}
+
+
+
+### Get Book BY ISBN
+$$$ Header key: User.key, sign: User.secret
+GET http://localhost:8080/books/{isbn}
+
+### Get Book BY ID
+$$$ Header key: User.key, sign: User.secret
+GET http://localhost:8080/book_by_id/{id}
+
+
+
+### Update Book Status OR Edit Book Properties
+$$$ Header key: User.key, sign: User.secret
+PATCH http://localhost:8080/books/{id}
+Content-Type: application/json
+
+{   
+    ...
+    "status": 3
+    ...
+}
