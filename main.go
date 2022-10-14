@@ -13,6 +13,13 @@ import (
 	"gorm.io/gorm"
 )
 
+type User struct {
+	ID     uint    `json:"id"`
+	Name   *string `json:"name"`
+	Key    *string `json:"key"`
+	Secret *string `json:"secret"`
+}
+
 type Book struct {
 	ID        uint    `json:"id"`
 	ISBN      *string `json:"isbn"`
@@ -21,13 +28,6 @@ type Book struct {
 	Published *int    `json:"published"`
 	Pages     *int    `json:"pages"`
 	Status    *int    `json:"status,omitempty"`
-}
-
-type User struct {
-	ID     uint    `json:"id"`
-	Name   *string `json:"name"`
-	Key    *string `json:"key"`
-	Secret *string `json:"secret"`
 }
 
 type BookResponse struct {
