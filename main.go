@@ -396,6 +396,7 @@ func (r *Repository) SetupRoutes(app *fiber.App) {
 	api.Get("/books", r.GetBooks)
 }
 
+// Main
 func main() {
 	err := godotenv.Load(".env")
 	if err != nil {
